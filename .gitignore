@@ -3,3 +3,7 @@
 
 # Cargo / rustc build outputs (any depth)
 **/target/
+
+# experimental directories
+hax/foo 
+hax/issue-2017
