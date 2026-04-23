@@ -1,12 +1,11 @@
 //! Binary crate that depends on both leaf crates (diamond-free tree: app → leaf_a, app → leaf_b).
 
-fn main() {
-    let n = 10;
+fn combine(n: i32) -> i32 {
     let x = leaf_a::bump(n);
     let y = leaf_b::double(x);
-    println!(
-        "{} + {}: bump({n}) = {x}, double({x}) = {y}",
-        leaf_a::label(),
-        leaf_b::label(),
-    );
+    x + y
+}
+
+fn main() {
+    let _ = combine(10);
 }
