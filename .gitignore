@@ -1,0 +1,5 @@
+# Lean Lake build outputs (any depth)
+**/.lake/
+
+# Cargo / rustc build outputs (any depth)
+**/target/
