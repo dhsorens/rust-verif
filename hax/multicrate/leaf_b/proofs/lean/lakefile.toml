@@ -1,0 +1,13 @@
+name = "leaf_b"
+version = "0.1.0"
+defaultTargets = ["leaf_b"]
+
+[[lean_lib]]
+name = "leaf_b"
+srcDir = "extraction"
+
+[[require]]
+name = "Hax"
+git.url = "https://github.com/cryspen/hax"
+git.subDir = "hax-lib/proof-libs/lean"
+rev = "main"
