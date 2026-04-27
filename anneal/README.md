@@ -1,0 +1,1 @@
+[Anneal](https://crates.io/crates/cargo-anneal) is a tool for dealing with *unsafe rust* which builds on Aeneas.
