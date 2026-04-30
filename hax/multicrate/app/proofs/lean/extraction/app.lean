@@ -5,8 +5,7 @@ import Hax
 import Std.Tactic.Do
 import Std.Do.Triple
 import Std.Tactic.Do.Syntax
-import leaf_a
-import leaf_b
+import app.interface
 open Std.Do
 open Std.Tactic
 
