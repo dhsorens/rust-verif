@@ -7,3 +7,6 @@
 # experimental directories
 hax/foo 
 hax/issue-2017
+
+# macOS Finder metadata (matches in any directory)
+.DS_Store

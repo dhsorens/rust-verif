@@ -1,0 +1,31 @@
+name = "app"
+version = "0.1.0"
+defaultTargets = ["app", "app_proofs"]
+
+[[lean_lib]]
+name = "app"
+
+[[lean_lib]]
+name = "app_proofs"
+
+[[require]]
+name = "Hax"
+git.url = "https://github.com/cryspen/hax"
+git.subDir = "hax-lib/proof-libs/lean"
+rev = "main"
+
+[[require]]
+name = "leaf_a"
+path = "../../../../leaf_a/proofs/lean/extraction/"
+
+[[require]]
+name = "leaf_a_proofs"
+path = "../../../../leaf_a/proofs/lean/extraction/"
+
+[[require]]
+name = "leaf_b"
+path = "../../../../leaf_b/proofs/lean/extraction/"
+
+[[require]]
+name = "leaf_b_proofs"
+path = "../../../../leaf_b/proofs/lean/extraction/"
