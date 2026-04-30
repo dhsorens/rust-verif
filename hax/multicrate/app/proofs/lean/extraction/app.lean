@@ -2,10 +2,10 @@
 -- Experimental lean backend for Hax
 -- The Hax prelude library can be found in hax/proof-libs/lean
 import Hax
+import app.interface
 import Std.Tactic.Do
 import Std.Do.Triple
 import Std.Tactic.Do.Syntax
-import app.interface
 open Std.Do
 open Std.Tactic
 
