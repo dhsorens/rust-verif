@@ -24,3 +24,4 @@ def label (_ : rust_primitives.hax.Tuple0) : RustM String := do (pure "leaf_b")
 def double (n : i32) : RustM i32 := do (n *? (2 : i32))
 
 end leaf_b
+

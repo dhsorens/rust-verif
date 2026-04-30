@@ -24,3 +24,4 @@ def label (_ : rust_primitives.hax.Tuple0) : RustM String := do (pure "leaf_a")
 def bump (n : i32) : RustM i32 := do (n +? (1 : i32))
 
 end leaf_a
+
