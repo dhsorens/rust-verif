@@ -1,0 +1,8 @@
+[package]
+name = "unchecked-slice"
+version = "0.1.0"
+edition = "2024"
+description = "Minimal Anneal example: unsafe slice indexing with a precondition in Anneal."
+
+[lib]
+path = "src/lib.rs"

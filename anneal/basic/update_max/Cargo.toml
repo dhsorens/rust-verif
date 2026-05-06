@@ -1,0 +1,8 @@
+[package]
+name = "update-max"
+version = "0.1.0"
+edition = "2024"
+description = "Minimal Anneal example: a safe function with mutable references and a simple proof."
+
+[lib]
+path = "src/lib.rs"

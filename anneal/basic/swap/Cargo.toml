@@ -1,0 +1,8 @@
+[package]
+name = "swap"
+version = "0.1.0"
+edition = "2024"
+description = "Minimal Anneal example: swapping through mutable references."
+
+[lib]
+path = "src/lib.rs"
