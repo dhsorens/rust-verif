@@ -1,0 +1,9 @@
+[package]
+name = "anodized_showcase"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Illustrative examples of Anodized #[spec] on stable Rust."
+
+[dependencies]
+anodized = { version = "0.4", features = ["runtime-check-and-panic"] }
