@@ -1,0 +1,12 @@
+name = "simple_aeneas_proofs"
+version = "0.1.0"
+defaultTargets = ["SimpleProofs"]
+
+[[require]]
+name = "aeneas"
+path = "/Users/dhsorens/devel/fv-tools/aeneas/backends/lean"
+
+# Includes generated `Simple.lean` and hand-written `SimpleProofs.lean`.
+[[lean_lib]]
+name = "SimpleProofs"
+roots = ["Simple", "SimpleProofs"]
