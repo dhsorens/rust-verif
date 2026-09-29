@@ -4,8 +4,6 @@ open Aeneas Aeneas.Std Result
 
 set_option maxHeartbeats 1000000
 
-#setup_aeneas_simps
-
 namespace simple
 
 /-- Specification for the extracted `add_u32` (integer addition without overflow). -/
@@ -26,6 +24,6 @@ theorem double_u32_spec (x : Std.U32) (h : 2 * x.val ≤ UInt32.size - 1) :
 theorem max_u32_spec (a b : Std.U32) :
     max_u32 a b ⦃ m => m.val = max a.val b.val ⦄ := by
   unfold max_u32
-  split <;> (step <;> scalar_tac)
+  split <;> (simp; scalar_tac)
 
 end simple

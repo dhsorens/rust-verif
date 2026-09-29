@@ -1,0 +1,17 @@
+name = "simple"
+version = "0.1.0"
+defaultTargets = ["Simple"]
+
+[[lean_lib]]
+name = "Simple"
+
+[[require]]
+name = "aeneas"
+git = "https://github.com/cryspen/aeneas"
+rev = "build-183e4f0"
+subDir = "backends/lean"
+
+[[require]]
+name = "hax"
+git = "https://github.com/cryspen/hax-lean"
+rev = "v0.3.27"
