@@ -41,7 +41,7 @@ Two kinds of specification live side by side:
 | Kind | Stated in | Extracted to | Proved in |
 |---|---|---|---|
 | Rust contracts | `src/lib.rs` attributes | `Simple/Extraction/Specs.lean` | `Simple/Verification/ProofObligations.lean` |
-| Lean-only specs | `Simple/Verification/Proofs/*.lean` | — | same file, next to the statement |
+| Lean-only specs | `Simple/Verification/ProofObligations/*.lean` | — | same file, next to the statement |
 
 ## 2. File structure
 
@@ -87,13 +87,11 @@ hax/simple/
         ├── Assumptions/
         │   ├── FunsExternal.lean      axioms for opaque external functions (empty)     once
         │   └── TypesExternal.lean     axioms for opaque external types (empty)         once
-        ├── Verification.lean          aggregator: imports Specs, Proofs,
-        │                              ProofObligations                                 you
         └── Verification/
-            ├── ProofObligations.lean  proofs of the generated contracts; a 1:1
-            │                          mirror of Extraction/ProofObligations.lean       you*
-            ├── Proofs.lean            imports everything under Proofs/                 you
-            └── Proofs/                Lean-only specs with their proofs, one file
+            ├── ProofObligations.lean  base file: proofs of the generated contracts
+            │                          (a 1:1 mirror of Extraction/ProofObligations)
+            │                          and imports of the directory below              you*
+            └── ProofObligations/      Lean-only specs with their proofs, one file
                 │                      per Rust function                                you
                 ├── AddU32.lean        add_u32.exact_sum (@[spec]), add_u32.comm
                 ├── DoubleU32.lean     double_u32.exact, via add_u32.exact_sum
@@ -110,20 +108,21 @@ Three ownership tiers:
   hax could not translate, then left alone. After a re-extraction, diff
   each file against its `_Template` sibling under `Extraction/` to see
   what changed. This crate has no external items, so both files are empty.
-- **`Verification/`** is created once as an empty stub and is entirely
-  hand-maintained. `Simple.lean` is also created only once, which is why
-  it is safe to point it at the `Simple.Verification` aggregator.
+- **`Verification/`** is created once, containing only an empty
+  `ProofObligations.lean` stub, and is entirely hand-maintained.
 
-Import order inside `Verification/` is `Proofs/*` → `Proofs` →
-`ProofObligations`: the generated-contract proofs may reuse hand-written
-results, but not the other way round, so there are no cycles.
+Import order inside `Verification/` is `ProofObligations/*` →
+`ProofObligations`: the base file imports the per-function files, so the
+generated-contract proofs may reuse hand-written results, but not the
+other way round, and there are no cycles.
 
 What is hax's and what is this project's: hax creates `Verification/`,
 the `ProofObligations.lean` stub, and the `<fn>.spec.proof` convention,
 and its own examples put every hand-written theorem into that one file.
-`Verification.lean`, `Proofs.lean` and the `Proofs/` directory are a
-layout chosen here to keep Lean-only properties apart from the answers
-to the generated template; hax neither expects nor checks them.
+The `ProofObligations/` subdirectory is a layout chosen here to keep
+Lean-only properties apart from the answers to the generated template;
+hax neither expects nor checks it. `Simple.lean` is exactly as hax wrote
+it.
 
 ## 3. Prerequisites
 
@@ -251,8 +250,9 @@ to show what still needs proving.
 
 ## 7. Proving the generated contracts
 
-Proofs go in `Verification/ProofObligations.lean`, kept as a strict 1:1
-mirror of the template so the two can be diffed after every
+Proofs go in `Verification/ProofObligations.lean`. Apart from the
+`import` lines for the subdirectory, its theorems are kept as a strict
+1:1 mirror of the template so the two can be diffed after every
 re-extraction. Every proof follows the same recipe:
 
 1. `unfold` the spec, its `pre`/`post`, and the function.
@@ -279,13 +279,13 @@ unfolded to relate the Rust-level precondition to the overflow bound.
 
 Not everything is expressible as a Rust attribute, and sometimes a
 cleaner mathematical statement is wanted. Those live under
-`Verification/Proofs/`, one file per Rust function, and each theorem is
-its own specification: the statement is a Hoare triple (or a plain
-equation) and the proof follows immediately. `Verification/Proofs.lean`
-just imports the directory.
+`Verification/ProofObligations/`, one file per Rust function, and each
+theorem is its own specification: the statement is a Hoare triple (or a
+plain equation) and the proof follows immediately. The base file
+`Verification/ProofObligations.lean` imports them.
 
 ```lean
--- Proofs/AddU32.lean
+-- ProofObligations/AddU32.lean
 
 /-- When the sum fits in a `u32`, `add_u32` returns exactly it. -/
 @[spec]
@@ -304,7 +304,7 @@ theorem add_u32.comm (a b : Std.U32) : add_u32 a b = add_u32 b a := by
 ```
 
 ```lean
--- Proofs/MaxU32.lean
+-- ProofObligations/MaxU32.lean
 
 /-- `max_u32` never fails and returns the mathematical maximum. -/
 theorem max_u32.eq_max (a b : Std.U32) :
@@ -318,8 +318,9 @@ Equalities of programs are proved by unfolding down to Aeneas's scalar
 operations. Name theorems `<fn>.<property>` and avoid `<fn>.spec`,
 `.pre`, `.post`, which hax reserves.
 
-To add a property for a new function, create `Proofs/<Fn>.lean` and add
-one `import` line to `Proofs.lean`.
+To add a property for a new function, create
+`ProofObligations/<Fn>.lean` and add one `import` line to
+`ProofObligations.lean`.
 
 ## 9. Reusing a verified function at its call sites
 
@@ -335,7 +336,7 @@ and the generated-contract `double_u32.spec.proof` go through by
 unfolding only `double_u32`:
 
 ```lean
--- Proofs/DoubleU32.lean
+-- ProofObligations/DoubleU32.lean
 theorem double_u32.exact (x : Std.U32) :
     ⦃ ⌜ 2 * x.val ≤ U32.max ⌝ ⦄ double_u32 x ⦃ ⇓ r => ⌜ r.val = 2 * x.val ⌝ ⦄ := by
   unfold double_u32
@@ -343,8 +344,9 @@ theorem double_u32.exact (x : Std.U32) :
 ```
 
 The call to `add_u32` is discharged from the `@[spec]` theorem, leaving a
-side goal that its precondition holds. `ProofObligations.lean` imports
-`Proofs.lean` for the same reason.
+side goal that its precondition holds. The base file imports the
+subdirectory for the same reason: `double_u32.spec.proof` needs
+`add_u32.exact_sum` in scope.
 
 If a call is not handled, `hax_mvcgen` stops with a goal of the form
 `wp⟦add_u32 x x⟧ …`, which is the signal that a `@[spec]` triple for
@@ -361,7 +363,7 @@ that function is missing.
    to prove.
 4. If hax reports new external items, fill the holes in `Assumptions/`
    using the regenerated `_Template` files as a guide.
-5. Add or update Lean-only properties under `Verification/Proofs/`.
+5. Add or update Lean-only properties under `Verification/ProofObligations/`.
 6. `cd proofs/lean && lake build`.
 
 What is committed: the Rust crate, the whole `proofs/lean` tree except
