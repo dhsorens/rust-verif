@@ -41,7 +41,7 @@ Two kinds of specification live side by side:
 | Kind | Stated in | Extracted to | Proved in |
 |---|---|---|---|
 | Rust contracts | `src/lib.rs` attributes | `Simple/Extraction/Specs.lean` | `Simple/Verification/ProofObligations.lean` |
-| Lean-only specs | `Simple/Verification/Specs.lean` | — | `Simple/Verification/Proofs.lean` |
+| Lean-only specs | `Simple/Verification/Proofs/*.lean` | — | same file, next to the statement |
 
 ## 2. File structure
 
@@ -92,10 +92,12 @@ hax/simple/
         └── Verification/
             ├── ProofObligations.lean  proofs of the generated contracts; a 1:1
             │                          mirror of Extraction/ProofObligations.lean       you*
-            ├── Specs.lean             Lean-only specifications, statements as
-            │                          abbrevs, no proofs                               you
-            └── Proofs.lean            proofs of Specs.lean, plus @[spec] triples
-                                       for use at call sites                            you
+            ├── Proofs.lean            imports everything under Proofs/                 you
+            └── Proofs/                Lean-only specs with their proofs, one file
+                │                      per Rust function                                you
+                ├── AddU32.lean        add_u32.exact_sum (@[spec]), add_u32.comm
+                ├── DoubleU32.lean     double_u32.exact, via add_u32.exact_sum
+                └── MaxU32.lean        max_u32.eq_max
 
 * hax creates Verification/ProofObligations.lean as an empty stub on the
   first run and never touches it afterwards.
@@ -112,9 +114,16 @@ Three ownership tiers:
   hand-maintained. `Simple.lean` is also created only once, which is why
   it is safe to point it at the `Simple.Verification` aggregator.
 
-Import order inside `Verification/` is `Specs` → `Proofs` →
+Import order inside `Verification/` is `Proofs/*` → `Proofs` →
 `ProofObligations`: the generated-contract proofs may reuse hand-written
 results, but not the other way round, so there are no cycles.
+
+What is hax's and what is this project's: hax creates `Verification/`,
+the `ProofObligations.lean` stub, and the `<fn>.spec.proof` convention,
+and its own examples put every hand-written theorem into that one file.
+`Verification.lean`, `Proofs.lean` and the `Proofs/` directory are a
+layout chosen here to keep Lean-only properties apart from the answers
+to the generated template; hax neither expects nor checks them.
 
 ## 3. Prerequisites
 
@@ -269,77 +278,73 @@ unfolded to relate the Rust-level precondition to the overflow bound.
 ## 8. Adding hand-written specs and proofs
 
 Not everything is expressible as a Rust attribute, and sometimes a
-cleaner mathematical statement is wanted. Those go in two files that
-mirror hax's own statements/proofs split.
-
-**`Verification/Specs.lean`** holds statements only, as `abbrev`s of type
-`Prop`, so what is claimed about the crate can be read without tactics:
+cleaner mathematical statement is wanted. Those live under
+`Verification/Proofs/`, one file per Rust function, and each theorem is
+its own specification: the statement is a Hoare triple (or a plain
+equation) and the proof follows immediately. `Verification/Proofs.lean`
+just imports the directory.
 
 ```lean
+-- Proofs/AddU32.lean
+
 /-- When the sum fits in a `u32`, `add_u32` returns exactly it. -/
-abbrev add_u32.exact_sum (a b : Std.U32) : Prop :=
-  ⦃ ⌜ a.val + b.val ≤ U32.max ⌝ ⦄ add_u32 a b ⦃ ⇓ r => ⌜ r.val = a.val + b.val ⌝ ⦄
-
-/-- Commutative *as a program*: same result and same overflow behaviour.
-    Not expressible as a `hax_lib::ensures` clause. -/
-abbrev add_u32.comm (a b : Std.U32) : Prop :=
-  add_u32 a b = add_u32 b a
-
-abbrev max_u32.eq_max (a b : Std.U32) : Prop :=
-  ⦃ ⌜ True ⌝ ⦄ max_u32 a b ⦃ ⇓ r => ⌜ r.val = max a.val b.val ⌝ ⦄
-```
-
-Name properties `<fn>.<property>`. Avoid `<fn>.spec`, `.pre`, `.post`,
-which hax reserves.
-
-**`Verification/Proofs.lean`** discharges each one as `<property>.proof`,
-with the same recipe as above. Equalities of programs are proved by
-unfolding to Aeneas's scalar operations:
-
-```lean
-theorem add_u32.exact_sum.proof (a b : Std.U32) : add_u32.exact_sum a b := by
-  unfold add_u32.exact_sum add_u32
+@[spec]
+theorem add_u32.exact_sum (a b : Std.U32) :
+    ⦃ ⌜ a.val + b.val ≤ U32.max ⌝ ⦄ add_u32 a b ⦃ ⇓ r => ⌜ r.val = a.val + b.val ⌝ ⦄ := by
+  unfold add_u32
   hax_mvcgen
   grind
 
-theorem add_u32.comm.proof (a b : Std.U32) : add_u32.comm a b := by
-  unfold add_u32.comm add_u32
+/-- Commutative *as a program*: same result and same overflow behaviour.
+    Not expressible as a `hax_lib::ensures` clause. -/
+theorem add_u32.comm (a b : Std.U32) : add_u32 a b = add_u32 b a := by
+  unfold add_u32
   show UScalar.add a b = UScalar.add b a
   simp only [UScalar.add, Nat.add_comm]
+```
 
-theorem max_u32.eq_max.proof (a b : Std.U32) : max_u32.eq_max a b := by
-  unfold max_u32.eq_max max_u32
+```lean
+-- Proofs/MaxU32.lean
+
+/-- `max_u32` never fails and returns the mathematical maximum. -/
+theorem max_u32.eq_max (a b : Std.U32) :
+    ⦃ ⌜ True ⌝ ⦄ max_u32 a b ⦃ ⇓ r => ⌜ r.val = max a.val b.val ⌝ ⦄ := by
+  unfold max_u32
   hax_mvcgen <;> scalar_tac
 ```
 
-As the crate grows, split `Specs.lean` and `Proofs.lean` per Rust module,
-keeping the pairing one-to-one, and list the new files in
-`Simple/Verification.lean`.
+Triples are proved with the same recipe as the generated contracts.
+Equalities of programs are proved by unfolding down to Aeneas's scalar
+operations. Name theorems `<fn>.<property>` and avoid `<fn>.spec`,
+`.pre`, `.post`, which hax reserves.
+
+To add a property for a new function, create `Proofs/<Fn>.lean` and add
+one `import` line to `Proofs.lean`.
 
 ## 9. Reusing a verified function at its call sites
 
 `double_u32` calls `add_u32`. To verify the caller without unfolding the
 callee, `hax_mvcgen` looks for lemmas tagged `@[spec]` whose statement is
-**literally a Hoare triple**. Two forms that look usable are not picked up:
+**literally a Hoare triple**. That is why `add_u32.exact_sum` above
+carries `@[spec]`. The generated `<fn>.spec` is *not* picked up, because
+it is an implication (`pre.holds → ⦃…⦄ …`) rather than a bare triple, and
+neither is a triple hidden behind a definition.
 
-- the generated `<fn>.spec`, because it is an implication
-  (`pre.holds → ⦃…⦄ …`), and
-- an `abbrev` from `Specs.lean`, because the triple is hidden behind a
-  definition.
-
-So `Proofs.lean` restates the property once in triple form:
+With `add_u32.exact_sum` in scope, both the hand-written `double_u32.exact`
+and the generated-contract `double_u32.spec.proof` go through by
+unfolding only `double_u32`:
 
 ```lean
-@[spec]
-theorem add_u32.exact_sum.triple (a b : Std.U32) :
-    ⦃ ⌜ a.val + b.val ≤ U32.max ⌝ ⦄ add_u32 a b ⦃ ⇓ r => ⌜ r.val = a.val + b.val ⌝ ⦄ :=
-  add_u32.exact_sum.proof a b
+-- Proofs/DoubleU32.lean
+theorem double_u32.exact (x : Std.U32) :
+    ⦃ ⌜ 2 * x.val ≤ U32.max ⌝ ⦄ double_u32 x ⦃ ⇓ r => ⌜ r.val = 2 * x.val ⌝ ⦄ := by
+  unfold double_u32
+  hax_mvcgen <;> grind
 ```
 
-With that in scope, both the hand-written `double_u32.exact.proof` and
-the generated-contract `double_u32.spec.proof` go through by unfolding
-only `double_u32`; the call to `add_u32` is discharged from the triple,
-leaving a side goal that the precondition holds.
+The call to `add_u32` is discharged from the `@[spec]` theorem, leaving a
+side goal that its precondition holds. `ProofObligations.lean` imports
+`Proofs.lean` for the same reason.
 
 If a call is not handled, `hax_mvcgen` stops with a goal of the form
 `wp⟦add_u32 x x⟧ …`, which is the signal that a `@[spec]` triple for
@@ -356,7 +361,7 @@ that function is missing.
    to prove.
 4. If hax reports new external items, fill the holes in `Assumptions/`
    using the regenerated `_Template` files as a guide.
-5. Add or update Lean-only properties in `Specs.lean` / `Proofs.lean`.
+5. Add or update Lean-only properties under `Verification/Proofs/`.
 6. `cd proofs/lean && lake build`.
 
 What is committed: the Rust crate, the whole `proofs/lean` tree except

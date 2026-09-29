@@ -11,7 +11,7 @@ can be diffed after re-extraction. hax never modifies anything under
 Recipe: `unfold` the spec, its pre/post and the function, let
 `hax_mvcgen` generate the verification conditions, and close them with
 `grind` / `scalar_tac`. Calls to already-verified functions are handled
-by the `@[spec]` triples in `Proofs.lean` (here: `add_u32.exact_sum.triple`
+by the `@[spec]` theorems under `Proofs/` (here: `add_u32.exact_sum`
 for the call inside `double_u32`). -/
 import Simple.Extraction
 import Simple.Verification.Proofs
@@ -37,7 +37,7 @@ theorem add_u32.spec.proof (a b : Std.U32) : add_u32.spec a b := by
 /-! ## `double_u32` -/
 
 /-- `double_u32 x` returns `x + x` whenever `x <= u32::MAX / 2`.
-`add_u32` is not unfolded: the call is handled by `add_u32.exact_sum.triple`. -/
+`add_u32` is not unfolded: the call is handled by `add_u32.exact_sum`. -/
 theorem double_u32.spec.proof (x : Std.U32) : double_u32.spec x := by
   unfold double_u32.spec double_u32.pre double_u32.post double_u32
   hax_mvcgen <;> grind [U32.rMax]
