@@ -8,10 +8,10 @@ alongside them.
 Contents:
 
 1. [The pipeline in one picture](#1-the-pipeline-in-one-picture)
-2. [Prerequisites](#2-prerequisites)
-3. [The Rust side: contracts as attributes](#3-the-rust-side-contracts-as-attributes)
-4. [Running the extraction](#4-running-the-extraction)
-5. [Project layout and who owns what](#5-project-layout-and-who-owns-what)
+2. [File structure](#2-file-structure)
+3. [Prerequisites](#3-prerequisites)
+4. [The Rust side: contracts as attributes](#4-the-rust-side-contracts-as-attributes)
+5. [Running the extraction](#5-running-the-extraction)
 6. [What hax generates](#6-what-hax-generates)
 7. [Proving the generated contracts](#7-proving-the-generated-contracts)
 8. [Adding hand-written specs and proofs](#8-adding-hand-written-specs-and-proofs)
@@ -43,7 +43,80 @@ Two kinds of specification live side by side:
 | Rust contracts | `src/lib.rs` attributes | `Simple/Extraction/Specs.lean` | `Simple/Verification/ProofObligations.lean` |
 | Lean-only specs | `Simple/Verification/Specs.lean` | — | `Simple/Verification/Proofs.lean` |
 
-## 2. Prerequisites
+## 2. File structure
+
+Every file in the example, with what it is for. The marker on the right
+says who edits a file: **hax** rewrites it on every extraction, **once**
+means hax creates it the first time and never again, **you** means it is
+hand-written, **cargo** / **lake** means the tool maintains it.
+
+```
+hax/simple/
+├── README.md                          this tutorial                                   you
+├── Cargo.toml                         crate manifest; depends on hax-lib,
+│                                      declares the `hax` cfg for cargo                 you
+├── Cargo.lock                         locked Rust dependencies                         cargo
+├── src/
+│   └── lib.rs                         the Rust code, with #[hax_lib::requires] /
+│                                      #[hax_lib::ensures] contracts                    you
+└── proofs/lean/                       Lake project "simple"
+    ├── lakefile.toml                  Lake config: one library `Simple`; requires
+    │                                  Cryspen's Aeneas fork and hax-lean               once
+    ├── lean-toolchain                 pins the Lean version for elan                   once
+    ├── lake-manifest.json             exact revisions of every Lean dependency         lake
+    ├── .gitignore                     ignores llbc/, .lake/, aeneas-error.log          once
+    ├── llbc/
+    │   └── simple.llbc                Charon's output, input to Aeneas; ignored        hax
+    ├── Simple.lean                    library root: imports Simple.Extraction and
+    │                                  Simple.Verification                              once
+    └── Simple/
+        ├── Extraction.lean            imports Types, Funs, Specs                       hax
+        ├── Extraction/
+        │   ├── Types.lean             extracted type definitions (none here)           hax
+        │   ├── Funs.lean              extracted functions, in the RustM monad          hax
+        │   ├── Specs.lean             <fn>.pre / .post / .spec built from the
+        │   │                          Rust contracts                                   hax
+        │   ├── ProofObligations.lean  `sorry` template listing the theorems to
+        │   │                          prove; not imported, a checklist                 hax
+        │   ├── FunsExternal.lean      re-exports Assumptions/FunsExternal              hax
+        │   ├── TypesExternal.lean     re-exports Assumptions/TypesExternal             hax
+        │   ├── FunsExternal_Template.lean
+        │   │                          fresh template to diff Assumptions against       hax
+        │   └── TypesExternal_Template.lean
+        │                              fresh template to diff Assumptions against       hax
+        ├── Assumptions/
+        │   ├── FunsExternal.lean      axioms for opaque external functions (empty)     once
+        │   └── TypesExternal.lean     axioms for opaque external types (empty)         once
+        ├── Verification.lean          aggregator: imports Specs, Proofs,
+        │                              ProofObligations                                 you
+        └── Verification/
+            ├── ProofObligations.lean  proofs of the generated contracts; a 1:1
+            │                          mirror of Extraction/ProofObligations.lean       you*
+            ├── Specs.lean             Lean-only specifications, statements as
+            │                          abbrevs, no proofs                               you
+            └── Proofs.lean            proofs of Specs.lean, plus @[spec] triples
+                                       for use at call sites                            you
+
+* hax creates Verification/ProofObligations.lean as an empty stub on the
+  first run and never touches it afterwards.
+```
+
+Three ownership tiers:
+
+- **`Extraction/`** is regenerated wholesale on every run. Never edit it.
+- **`Assumptions/`** is seeded once with holes for external items that
+  hax could not translate, then left alone. After a re-extraction, diff
+  each file against its `_Template` sibling under `Extraction/` to see
+  what changed. This crate has no external items, so both files are empty.
+- **`Verification/`** is created once as an empty stub and is entirely
+  hand-maintained. `Simple.lean` is also created only once, which is why
+  it is safe to point it at the `Simple.Verification` aggregator.
+
+Import order inside `Verification/` is `Specs` → `Proofs` →
+`ProofObligations`: the generated-contract proofs may reuse hand-written
+results, but not the other way round, so there are no cycles.
+
+## 3. Prerequisites
 
 - `cargo hax` 0.4.1 or later, installed as described in the
   [hax repo](https://github.com/cryspen/hax). hax manages its own Charon
@@ -54,7 +127,7 @@ Two kinds of specification live side by side:
 - Roughly 8 GB of disk for the Lean dependencies (Mathlib is pulled in via
   Aeneas; its build cache is downloaded rather than compiled).
 
-## 3. The Rust side: contracts as attributes
+## 4. The Rust side: contracts as attributes
 
 `src/lib.rs` is ordinary Rust plus `hax_lib` attributes:
 
@@ -96,7 +169,7 @@ Points to note:
 - `Cargo.toml` depends on `hax-lib = "0.4.1"`; keep it in step with the
   `cargo hax` version.
 
-## 4. Running the extraction
+## 5. Running the extraction
 
 From this directory:
 
@@ -118,52 +191,6 @@ lake build
 
 The first build fetches the Cryspen Aeneas fork, the `hax-lean` support
 library, and Mathlib (from its binary cache). Later builds are incremental.
-
-## 5. Project layout and who owns what
-
-```
-hax/simple/
-├── Cargo.toml, Cargo.lock, src/lib.rs      Rust crate with hax_lib contracts
-└── proofs/lean/                            Lake project "simple"
-    ├── lakefile.toml, lean-toolchain       requires Cryspen's Aeneas fork + hax-lean
-    ├── lake-manifest.json                  pinned dependency revisions
-    ├── .gitignore                          ignores llbc/, .lake/, aeneas-error.log
-    ├── llbc/simple.llbc                    Charon output, intermediate, ignored
-    ├── Simple.lean                         entry point: imports Extraction + Verification
-    └── Simple/
-        ├── Extraction.lean                 imports Types, Funs, Specs
-        ├── Extraction/                     ── hax-owned, rewritten every run ──
-        │   ├── Types.lean                  extracted type definitions
-        │   ├── Funs.lean                   extracted functions, in RustM
-        │   ├── Specs.lean                  <fn>.pre / .post / .spec from the attributes
-        │   ├── ProofObligations.lean       `sorry` template of the theorems to prove
-        │   ├── FunsExternal.lean           re-exports Assumptions/FunsExternal
-        │   ├── TypesExternal.lean          re-exports Assumptions/TypesExternal
-        │   └── *External_Template.lean     fresh templates to diff Assumptions against
-        ├── Assumptions/                    ── hax-seeded once, then yours ──
-        │   ├── FunsExternal.lean           axioms for opaque external functions
-        │   └── TypesExternal.lean          axioms for opaque external types
-        ├── Verification.lean               aggregator for everything hand-written
-        └── Verification/                   ── yours; hax never touches it ──
-            ├── ProofObligations.lean       1:1 answer to the generated template
-            ├── Specs.lean                  Lean-only specs, statements as abbrevs
-            └── Proofs.lean                 their proofs, plus @[spec] triples
-```
-
-Three ownership tiers:
-
-- **`Extraction/`** is regenerated wholesale on every run. Never edit it.
-- **`Assumptions/`** is seeded once with holes for external items that
-  hax could not translate, then left alone. After a re-extraction, diff
-  each file against its `_Template` sibling under `Extraction/` to see
-  what changed. This crate has no external items, so both files are empty.
-- **`Verification/`** is created once as an empty stub and is entirely
-  hand-maintained. `Simple.lean` is also created only once, which is why
-  it is safe to point it at the `Simple.Verification` aggregator.
-
-Import order inside `Verification/` is `Specs` → `Proofs` →
-`ProofObligations`: the generated-contract proofs may reuse hand-written
-results, but not the other way round, so there are no cycles.
 
 ## 6. What hax generates
 
