@@ -27,19 +27,19 @@ noncomputable section
 namespace simple
 
 /-- [simple::add_u32]:
-    Source: 'src/lib.rs', lines 6:0-8:1
+    Source: 'src/lib.rs', lines 15:0-17:1
     Visibility: public -/
 def add_u32 (a : Std.U32) (b : Std.U32) : RustM Std.U32 := do
   a + b
 
 /-- [simple::double_u32]:
-    Source: 'src/lib.rs', lines 11:0-13:1
+    Source: 'src/lib.rs', lines 22:0-24:1
     Visibility: public -/
 def double_u32 (x : Std.U32) : RustM Std.U32 := do
   add_u32 x x
 
 /-- [simple::max_u32]:
-    Source: 'src/lib.rs', lines 16:0-22:1
+    Source: 'src/lib.rs', lines 28:0-34:1
     Visibility: public -/
 def max_u32 (a : Std.U32) (b : Std.U32) : RustM Std.U32 := do
   if a >= b

@@ -6,3 +6,10 @@ publish = false
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+hax-lib = "0.4.1"
+
+# `cargo hax` compiles with `--cfg hax`; declare it so plain cargo does not warn.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(hax)'] }

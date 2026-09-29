@@ -1,2 +1,2 @@
 import Simple.Extraction
-import Simple.Verification.ProofObligations
+import Simple.Verification
