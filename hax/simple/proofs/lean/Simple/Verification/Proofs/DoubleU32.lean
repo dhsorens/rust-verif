@@ -1,5 +1,5 @@
 /- Hand-written properties of `double_u32`. -/
-import Simple.Verification.ProofObligations.AddU32
+import Simple.Verification.Proofs.AddU32
 open CoreModels Aeneas
 open Aeneas.Std hiding namespace core alloc
 open RustM ControlFlow Error
